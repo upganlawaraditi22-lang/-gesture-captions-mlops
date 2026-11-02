@@ -1,0 +1,87 @@
+name: Deploy to Azure
+
+# Runs after CI passes on main. It is skipped until the Azure variables are added.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      vars.AKS_NAME != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.IMAGE_TAG }}
+          lfs: true
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image
+        run: |
+          az acr login --name "${{ vars.ACR_NAME }}"
+          image="${{ vars.ACR_NAME }}.azurecr.io/gesture-captions"
+          docker build --build-arg "MODEL_VERSION=$IMAGE_TAG" -t "$image:$IMAGE_TAG" .
+          docker push "$image:$IMAGE_TAG"
+
+      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-helm@v4
+
+      - name: Connect to the cluster
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_NAME }}" \
+            --overwrite-existing
+
+      - name: Install monitoring
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --version 75.0.0 \
+            --namespace monitoring --create-namespace \
+            --values monitoring/values.yaml \
+            --wait --timeout 10m
+          kubectl apply -k monitoring
+
+      - name: Deploy app
+        env:
+          TURN_URL: ${{ secrets.TURN_URL }}
+          TURN_USERNAME: ${{ secrets.TURN_USERNAME }}
+          TURN_CREDENTIAL: ${{ secrets.TURN_CREDENTIAL }}
+        run: |
+          rendered="$(scripts/render_k8s.sh \
+            "${{ vars.ACR_NAME }}.azurecr.io/gesture-captions" "$IMAGE_TAG" \
+            "${{ vars.APP_DNS_LABEL }}" "${{ vars.AZURE_REGION }}")"
+          kubectl apply -k "$rendered"
+          if [ -n "$TURN_URL" ]; then
+            kubectl create secret generic gesture-turn \
+              --namespace gesture-captions \
+              --from-literal=TURN_URL="$TURN_URL" \
+              --from-literal=TURN_USERNAME="$TURN_USERNAME" \
+              --from-literal=TURN_CREDENTIAL="$TURN_CREDENTIAL" \
+              --dry-run=client -o yaml | kubectl apply -f -
+            kubectl rollout restart deployment/gesture-captions --namespace gesture-captions
+          fi
+          kubectl rollout status deployment/gesture-captions --namespace gesture-captions --timeout=5m
+          kubectl rollout status deployment/caddy --namespace gesture-captions --timeout=5m
+
+      - name: Show app address
+        run: |
+          echo "App: https://${{ vars.APP_DNS_LABEL }}.${{ vars.AZURE_REGION }}.cloudapp.azure.com" \
+            >> "$GITHUB_STEP_SUMMARY"

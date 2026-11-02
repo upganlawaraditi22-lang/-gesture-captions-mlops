@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gesture-captions
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - gesture-captions
+  selector:
+    matchLabels:
+      app: gesture-captions
+  endpoints:
+    - port: metrics
+      interval: 15s

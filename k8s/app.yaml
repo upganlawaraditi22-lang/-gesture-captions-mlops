@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gesture-captions
+  labels:
+    app: gesture-captions
+spec:
+  # Streamlit keeps each session in pod memory. Using more replicas requires sticky
+  # routing first, or uploads and sessions break.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gesture-captions
+  template:
+    metadata:
+      labels:
+        app: gesture-captions
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: app
+          image: gesture-captions:latest
+          ports:
+            - name: http
+              containerPort: 8501
+            - name: metrics
+              containerPort: 9100
+          envFrom:
+            # Optional TURN relay settings for the live webcam.
+            - secretRef:
+                name: gesture-turn
+                optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              memory: 1536Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gesture-captions
+  labels:
+    app: gesture-captions
+spec:
+  type: ClusterIP
+  selector:
+    app: gesture-captions
+  ports:
+    - name: http
+      port: 8501
+      targetPort: http
+    - name: metrics
+      port: 9100
+      targetPort: metrics

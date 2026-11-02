@@ -1,0 +1,30 @@
+# Local stack: app, Prometheus, and Grafana. All ports are bound to this computer only.
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:8501:8501"
+      - "127.0.0.1:9100:9100"
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    volumes:
+      - ./monitoring/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - ./monitoring/local/grafana-provisioning.yml:/etc/grafana/provisioning/dashboards/default.yml:ro
+      - ./monitoring/local/grafana-datasource.yml:/etc/grafana/provisioning/datasources/default.yml:ro
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
