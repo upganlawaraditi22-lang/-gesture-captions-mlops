@@ -60,9 +60,10 @@ git remote add origin https://github.com/YOUR-USERNAME/gesture-captions-mlops.gi
 git push -u origin main
 ```
 
-The `CI` workflow runs automatically. `Deploy to Azure` stays skipped until step 5.
+`CI` runs automatically. After it passes on `main`, `Publish image` pushes the Docker image to
+GitHub Container Registry as `ghcr.io/YOUR-USERNAME/gesture-captions`.
 
-## 4. Create Azure infrastructure
+## 4. Create Azure infrastructure (optional)
 
 You need the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli),
 [Terraform](https://developer.hashicorp.com/terraform/install), and Owner access on the
@@ -87,7 +88,7 @@ If Azure rejects the region or VM size, change `location` or `node_vm_size` in `
 Keep `terraform.tfstate` safe. Terraform needs it to destroy these resources later. It isn't
 committed to Git.
 
-## 5. Connect GitHub to Azure
+## 5. Connect GitHub to Azure (optional)
 
 In the GitHub repository, go to **Settings > Secrets and variables > Actions**, and add the values
 from `terraform output github_settings`:
@@ -95,8 +96,7 @@ from `terraform output github_settings`:
 - **Secrets:** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 - **Variables:** `ACR_NAME`, `AKS_NAME`, `RESOURCE_GROUP`, `APP_DNS_LABEL`, `AZURE_REGION`
 
-Then open **Actions > Deploy to Azure > Run workflow**. Later pushes to `main` deploy automatically
-after CI passes. The app will be at the `app_url` address.
+Then open **Actions > Deploy to Azure > Run workflow**. The app will be at the `app_url` address.
 
 ## 6. Check Kubernetes and Grafana
 

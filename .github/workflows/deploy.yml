@@ -1,11 +1,7 @@
 name: Deploy to Azure
 
-# Runs after CI passes on main. It is skipped until the Azure variables are added.
+# Optional: run this manually after creating the Azure resources with Terraform.
 on:
-  workflow_run:
-    workflows: [CI]
-    branches: [main]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -14,12 +10,10 @@ permissions:
 
 jobs:
   deploy:
-    if: >-
-      vars.AKS_NAME != '' &&
-      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    if: vars.AKS_NAME != ''
     runs-on: ubuntu-latest
     env:
-      IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+      IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
