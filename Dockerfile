@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 ARG MODEL_VERSION=dev
 
@@ -8,6 +8,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     MODEL_VERSION=${MODEL_VERSION}
 
 WORKDIR /app
+
+# OpenCV needs these system libraries.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

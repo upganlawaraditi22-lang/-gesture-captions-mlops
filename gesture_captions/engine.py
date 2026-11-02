@@ -37,6 +37,7 @@ class CaptionEngine:
         metrics.CONFIDENCE.observe(prediction.confidence)
         if self.captions.update(prediction):
             metrics.WORDS.inc()
+            self.predictor.on_word_added()
         return prediction
 
 
@@ -57,7 +58,7 @@ def annotate(frame_bgr: np.ndarray, prediction: Prediction | None, caption: str)
     return output
 
 
-def read_video_frames(path: str | Path, target_fps: float = 10.0) -> Iterator[np.ndarray]:
+def read_video_frames(path: str | Path, target_fps: float = 30.0) -> Iterator[np.ndarray]:
     """Yield frames from a video file at about ``target_fps``."""
     capture = cv2.VideoCapture(str(path))
     if not capture.isOpened():

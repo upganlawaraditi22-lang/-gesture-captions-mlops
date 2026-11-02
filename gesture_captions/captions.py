@@ -7,15 +7,14 @@ from collections.abc import Iterable
 
 from gesture_captions.predictor import Prediction
 
-DEFAULT_NO_GESTURE_LABELS = frozenset({"no_gesture", "none", "background", "nothing"})
+DEFAULT_NO_GESTURE_LABELS = frozenset({"nothing", "none", "blank", "idle"})
 
 
 class CaptionBuilder:
     """Add a word only after a gesture is held steadily.
 
-    A held gesture adds one word. Repeating a word requires lowering the hand
-    (a no-gesture label) or showing a different gesture in between. Brief
-    low-confidence frames do not cause repeats.
+    A held gesture adds one word. Repeating a word requires lowering the hand or showing a
+    different gesture in between. Brief low-confidence or missed frames do not cause repeats.
     """
 
     def __init__(
@@ -34,13 +33,18 @@ class CaptionBuilder:
         self._candidate: str | None = None
         self._count = 0
         self._last_added: str | None = None
+        self._no_gesture_count = 0
 
     def update(self, prediction: Prediction) -> bool:
         """Process one prediction. Returns True if a word was added."""
         with self._lock:
             if prediction.label.lower() in self._no_gesture:
-                self._candidate, self._count, self._last_added = None, 0, None
+                self._candidate, self._count = None, 0
+                self._no_gesture_count += 1
+                if self._no_gesture_count >= self._stable_frames:
+                    self._last_added = None
                 return False
+            self._no_gesture_count = 0
             if prediction.confidence < self._threshold:
                 self._candidate, self._count = None, 0
                 return False
@@ -56,11 +60,16 @@ class CaptionBuilder:
             return True
 
     @property
-    def text(self) -> str:
+    def words(self) -> list[str]:
         with self._lock:
-            return " ".join(self._words)
+            return list(self._words)
+
+    @property
+    def text(self) -> str:
+        return " ".join(self.words)
 
     def clear(self) -> None:
         with self._lock:
             self._words.clear()
             self._candidate, self._count, self._last_added = None, 0, None
+            self._no_gesture_count = 0

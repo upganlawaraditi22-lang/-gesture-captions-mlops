@@ -2,15 +2,29 @@
 
 from pathlib import Path
 
+import streamlit as st
 import streamlit_webrtc
 from streamlit.testing.v1 import AppTest
 
+APP = str(Path(__file__).parent.parent / "app.py")
 
-def test_app_starts_and_warns_about_placeholder(monkeypatch, tmp_path):
-    monkeypatch.setenv("MODEL_PATH", str(tmp_path / "missing.onnx"))
+
+def run_app(monkeypatch):
+    st.cache_resource.clear()
     monkeypatch.setenv("METRICS_PORT", "19100")
     # The WebRTC component needs a real Streamlit server, which AppTest doesn't provide.
     monkeypatch.setattr(streamlit_webrtc, "webrtc_streamer", lambda **_: None)
-    app = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
+    return AppTest.from_file(APP, default_timeout=30).run()
+
+
+def test_app_uses_real_models(monkeypatch):
+    app = run_app(monkeypatch)
+    assert not app.exception
+    assert not app.warning
+
+
+def test_app_warns_about_placeholder_without_models(monkeypatch, tmp_path):
+    monkeypatch.setenv("MODEL_DIR", str(tmp_path))
+    app = run_app(monkeypatch)
     assert not app.exception
     assert "Placeholder model" in app.warning[0].value

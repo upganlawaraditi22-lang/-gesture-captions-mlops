@@ -3,8 +3,9 @@ pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff]
+extend-exclude = ["gesture_captions/language.py"]
 line-length = 100
-target-version = "py313"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

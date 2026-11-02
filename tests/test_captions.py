@@ -1,4 +1,5 @@
 from gesture_captions.captions import CaptionBuilder
+from gesture_captions.language import gloss_text, translate
 from gesture_captions.predictor import Prediction
 
 
@@ -32,9 +33,17 @@ def test_low_confidence_is_ignored_and_does_not_repeat_word():
 def test_word_repeats_after_no_gesture():
     builder = CaptionBuilder(stable_frames=2)
     feed(builder, "hello", 2)
-    feed(builder, "no_gesture", 3)
+    feed(builder, "NOTHING", 2)
     feed(builder, "hello", 2)
     assert builder.text == "hello hello"
+
+
+def test_brief_hand_loss_does_not_repeat_word():
+    builder = CaptionBuilder(stable_frames=3)
+    feed(builder, "hello", 3)
+    feed(builder, "NOTHING", 1)
+    feed(builder, "hello", 5)
+    assert builder.text == "hello"
 
 
 def test_different_gestures_build_a_sentence():
@@ -58,3 +67,11 @@ def test_clear_resets_state():
     assert builder.text == ""
     feed(builder, "hello", 1)
     assert builder.text == "hello"
+
+
+def test_signs_become_sentences_in_each_language():
+    words = ["I", "WANT", "WATER", "PLEASE"]
+    assert translate(words, "en") == "I would like some water, please."
+    assert "पानी" in translate(words, "hi")
+    assert "पाणी" in translate(words, "mr")
+    assert gloss_text(["LETTER_R", "LETTER_A", "LETTER_M"]) == "RAM"

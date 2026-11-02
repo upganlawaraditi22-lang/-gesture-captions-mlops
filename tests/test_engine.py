@@ -10,10 +10,13 @@ from gesture_captions.predictor import Prediction
 
 class FixedPredictor:
     model_type = "test"
-    labels = ("hello",)
+    words_added = 0
 
     def predict(self, frame_bgr):
         return Prediction("hello", 0.95)
+
+    def on_word_added(self):
+        self.words_added += 1
 
 
 class BrokenPredictor(FixedPredictor):
@@ -27,12 +30,14 @@ def metric(name, **labels):
 
 def test_engine_updates_caption_and_metrics():
     before = metric("gesture_predictions_total", label="hello")
-    engine = CaptionEngine(FixedPredictor(), CaptionBuilder(stable_frames=2))
+    predictor = FixedPredictor()
+    engine = CaptionEngine(predictor, CaptionBuilder(stable_frames=2))
     frame = np.zeros((8, 8, 3), np.uint8)
     engine.process(frame)
     engine.process(frame)
     assert engine.captions.text == "hello"
     assert metric("gesture_predictions_total", label="hello") == before + 2
+    assert predictor.words_added == 1
 
 
 def test_engine_survives_inference_error():

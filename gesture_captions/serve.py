@@ -14,11 +14,13 @@ from streamlit.web import cli as streamlit_cli
 
 from gesture_captions import metrics
 from gesture_captions.config import Settings
-from gesture_captions.predictor import load_predictor
+from gesture_captions.predictor import MODES, load_predictor
 
 
 def prepare(settings: Settings) -> None:
-    predictor = load_predictor(settings)
+    # Load every mode now, so a bad model file stops the container at startup.
+    predictors = [load_predictor(settings, mode) for mode in MODES]
+    predictor = predictors[0]
     metrics.set_model_info(predictor.model_type, settings.model_version)
     metrics.start_metrics_server(settings.metrics_port)
 

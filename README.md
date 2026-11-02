@@ -16,19 +16,19 @@ flowchart LR
     G --> H[Grafana]
 ```
 
-> **The app starts with a placeholder model that does not recognise gestures.** Follow
-> [Add your trained model](docs/ADD_YOUR_MODEL.md) before your demo or report screenshots.
+The app uses MediaPipe hand landmarks with trained static, finger-spelling, and motion models, then
+turns signs into English, Hindi, or Marathi sentences. See [Models](docs/MODELS.md).
 
 ## 1. Run locally
 
-Use Python 3.13.
+Use Python 3.12, because MediaPipe 0.10.14 doesn't support 3.13.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+conda create -n gesture-mlops python=3.12 -y
+conda activate gesture-mlops
 pip install -r requirements-dev.txt
-pytest
-streamlit run app.py
+python -m pytest
+python -m streamlit run app.py
 ```
 
 Open http://localhost:8501. Metrics are at http://localhost:9100/metrics.
@@ -54,7 +54,6 @@ Create an empty repository, then run:
 
 ```bash
 git init -b main
-git lfs install
 git add .
 git commit -m "Initial MLOps project"
 git remote add origin https://github.com/YOUR-USERNAME/gesture-captions-mlops.git
